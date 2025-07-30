@@ -3,102 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speech to Text Converter</title>
+    <title>Video Subtitle Generator 2.0</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1 class="title">Speech to Text</h1>
-            <p class="subtitle">Convert your voice to text instantly</p>
+            <h1 class="title">Video Subtitle Generator 2.0</h1>
+            <p class="subtitle">Create and export subtitles for your videos</p>
         </header>
 
         <main class="main-content">
-            <div class="controls-section">
-                <div class="language-selector">
-                    <label for="language">Language:</label>
-                    <select id="language" class="language-select">
-                        <option value="en-US">English (US)</option>
-                        <option value="en-GB">English (UK)</option>
-                        <option value="es-ES">Spanish</option>
-                        <option value="fr-FR">French</option>
-                        <option value="de-DE">German</option>
-                        <option value="it-IT">Italian</option>
-                        <option value="pt-BR">Portuguese (Brazil)</option>
-                        <option value="ru-RU">Russian</option>
-                        <option value="ja-JP">Japanese</option>
-                        <option value="ko-KR">Korean</option>
-                        <option value="zh-CN">Chinese (Simplified)</option>
-                        <option value="ar-SA">Arabic</option>
-                    </select>
-                </div>
-
-                <div class="recording-controls">
-                    <button id="startBtn" class="btn btn-primary">
-                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="23"></line>
-                            <line x1="8" y1="23" x2="16" y2="23"></line>
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
                         </svg>
-                        Start Recording
-                    </button>
-                    
-                    <button id="stopBtn" class="btn btn-secondary" disabled>
-                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="6" y="6" width="12" height="12"></rect>
-                        </svg>
-                        Stop Recording
-                    </button>
+                        <h3>Upload Video File</h3>
+                        <p>Drag and drop your video file here or click to browse</p>
+                        <p class="file-types">Supports MP4, AVI, MOV, MKV files</p>
+                    </div>
+                    <input type="file" id="videoInput" accept="video/*" hidden>
                 </div>
-
-                <div class="status-indicator">
-                    <div id="statusDot" class="status-dot"></div>
-                    <span id="statusText" class="status-text">Ready to record</span>
+                
+                <div class="video-info" id="videoInfo" style="display: none;">
+                    <div class="video-details">
+                        <h4 id="videoName">No file selected</h4>
+                        <p id="videoDuration">Duration: --:--</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="output-section">
-                <div class="output-header">
-                    <h2>Transcription</h2>
-                    <div class="output-actions">
-                        <button id="clearBtn" class="btn btn-outline">Clear</button>
-                        <button id="copyBtn" class="btn btn-outline">Copy</button>
-                        <button id="downloadBtn" class="btn btn-outline">Download</button>
+            <div class="video-player-section" id="videoPlayerSection" style="display: none;">
+                <video id="videoPlayer" controls>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="subtitle-editor-section" id="subtitleEditorSection" style="display: none;">
+                <div class="editor-header">
+                    <h2>Subtitle Editor</h2>
+                    <div class="editor-actions">
+                        <button id="addSubtitleBtn" class="btn btn-primary">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add Subtitle
+                        </button>
+                        <button id="clearAllBtn" class="btn btn-outline">Clear All</button>
+                        <button id="exportSrtBtn" class="btn btn-success">
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7,10 12,15 17,10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export SRT
+                        </button>
                     </div>
                 </div>
                 
-                <div class="transcript-container">
-                    <div id="transcript" class="transcript" contenteditable="true" placeholder="Your transcribed text will appear here..."></div>
-                    <div id="interimTranscript" class="interim-transcript"></div>
+                <div class="subtitle-list" id="subtitleList">
+                    <div class="subtitle-placeholder">
+                        <p>No subtitles added yet. Click "Add Subtitle" to get started.</p>
+                    </div>
                 </div>
             </div>
 
             <div class="features-section">
                 <div class="feature-card">
-                    <div class="feature-icon">🎤</div>
-                    <h3>Real-time Transcription</h3>
-                    <p>See your words appear as you speak with live transcription</p>
+                    <div class="feature-icon">🎬</div>
+                    <h3>Video Upload</h3>
+                    <p>Support for multiple video formats including MP4, AVI, MOV, and MKV</p>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">🌍</div>
-                    <h3>Multiple Languages</h3>
-                    <p>Support for 12+ languages with accurate recognition</p>
+                    <div class="feature-icon">✏️</div>
+                    <h3>Subtitle Editor</h3>
+                    <p>Easy-to-use interface for creating and editing subtitle timing and text</p>
                 </div>
                 
                 <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>Easy Export</h3>
-                    <p>Copy to clipboard or download as text file</p>
+                    <div class="feature-icon">💾</div>
+                    <h3>SRT Export</h3>
+                    <p>Export your subtitles in standard SRT format for use with any video player</p>
                 </div>
             </div>
         </main>
 
         <footer class="footer">
-            <p>&copy; 2025 Speech to Text Converter. Built with Web Speech API.</p>
+            <p>&copy; 2025 Video Subtitle Generator 2.0. Create professional subtitles with ease.</p>
         </footer>
+    </div>
+
+    <!-- Subtitle Edit Modal -->
+    <div id="subtitleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Subtitle</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="time-inputs">
+                    <div class="time-group">
+                        <label for="startTime">Start Time (seconds)</label>
+                        <input type="number" id="startTime" step="0.1" min="0" placeholder="0.0">
+                    </div>
+                    <div class="time-group">
+                        <label for="endTime">End Time (seconds)</label>
+                        <input type="number" id="endTime" step="0.1" min="0" placeholder="5.0">
+                    </div>
+                </div>
+                <div class="text-group">
+                    <label for="subtitleText">Subtitle Text</label>
+                    <textarea id="subtitleText" rows="3" placeholder="Enter subtitle text here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelBtn" class="btn btn-outline">Cancel</button>
+                <button id="saveSubtitleBtn" class="btn btn-primary">Save Subtitle</button>
+            </div>
+        </div>
     </div>
 
     <div id="notification" class="notification"></div>

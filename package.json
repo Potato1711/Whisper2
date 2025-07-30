@@ -1,7 +1,7 @@
 {
-  "name": "speech-to-text-converter",
+  "name": "video-subtitle-generator",
   "version": "1.0.0",
-  "description": "A modern web application for converting speech to text using the Web Speech API",
+  "description": "A modern web application for creating and exporting video subtitles",
   "main": "index.html",
   "scripts": {
     "dev": "npx http-server . -p 3000 -o",
@@ -10,10 +10,10 @@
     "test": "echo 'No tests specified'"
   },
   "keywords": [
-    "speech-to-text",
-    "web-speech-api",
-    "voice-recognition",
-    "transcription"
+    "video-subtitles",
+    "srt-export",
+    "subtitle-editor",
+    "video-processing"
   ],
   "author": "",
   "license": "MIT",

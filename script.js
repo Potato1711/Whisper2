@@ -1,264 +1,348 @@
-class SpeechToTextApp {
+class VideoSubtitleGenerator {
     constructor() {
-        this.recognition = null;
-        this.isRecording = false;
-        this.finalTranscript = '';
+        this.subtitles = [];
+        this.currentEditingIndex = -1;
+        this.videoFile = null;
+        this.videoDuration = 0;
         
         this.initializeElements();
-        this.initializeSpeechRecognition();
         this.bindEvents();
     }
 
     initializeElements() {
-        this.startBtn = document.getElementById('startBtn');
-        this.stopBtn = document.getElementById('stopBtn');
-        this.clearBtn = document.getElementById('clearBtn');
-        this.copyBtn = document.getElementById('copyBtn');
-        this.downloadBtn = document.getElementById('downloadBtn');
-        this.languageSelect = document.getElementById('language');
-        this.transcript = document.getElementById('transcript');
-        this.interimTranscript = document.getElementById('interimTranscript');
-        this.statusDot = document.getElementById('statusDot');
-        this.statusText = document.getElementById('statusText');
+        // Upload elements
+        this.uploadArea = document.getElementById('uploadArea');
+        this.videoInput = document.getElementById('videoInput');
+        this.videoInfo = document.getElementById('videoInfo');
+        this.videoName = document.getElementById('videoName');
+        this.videoDuration = document.getElementById('videoDuration');
+        
+        // Video player
+        this.videoPlayerSection = document.getElementById('videoPlayerSection');
+        this.videoPlayer = document.getElementById('videoPlayer');
+        
+        // Subtitle editor
+        this.subtitleEditorSection = document.getElementById('subtitleEditorSection');
+        this.addSubtitleBtn = document.getElementById('addSubtitleBtn');
+        this.clearAllBtn = document.getElementById('clearAllBtn');
+        this.exportSrtBtn = document.getElementById('exportSrtBtn');
+        this.subtitleList = document.getElementById('subtitleList');
+        
+        // Modal elements
+        this.subtitleModal = document.getElementById('subtitleModal');
+        this.modalTitle = document.getElementById('modalTitle');
+        this.modalClose = document.getElementById('modalClose');
+        this.startTime = document.getElementById('startTime');
+        this.endTime = document.getElementById('endTime');
+        this.subtitleText = document.getElementById('subtitleText');
+        this.cancelBtn = document.getElementById('cancelBtn');
+        this.saveSubtitleBtn = document.getElementById('saveSubtitleBtn');
+        
+        // Notification
         this.notification = document.getElementById('notification');
     }
 
-    initializeSpeechRecognition() {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            this.showNotification('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
-            this.startBtn.disabled = true;
-            return;
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        this.recognition = new SpeechRecognition();
-        
-        this.recognition.continuous = true;
-        this.recognition.interimResults = true;
-        this.recognition.lang = this.languageSelect.value;
-        
-        this.setupRecognitionEvents();
-    }
-
-    setupRecognitionEvents() {
-        this.recognition.onstart = () => {
-            this.isRecording = true;
-            this.updateUI();
-            this.updateStatus('recording', 'Recording...');
-        };
-
-        this.recognition.onresult = (event) => {
-            let interimTranscriptText = '';
-            
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
-                
-                if (event.results[i].isFinal) {
-                    this.finalTranscript += transcript + ' ';
-                    this.updateTranscript();
-                } else {
-                    interimTranscriptText += transcript;
-                }
-            }
-            
-            this.updateInterimTranscript(interimTranscriptText);
-        };
-
-        this.recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
-            let errorMessage = 'An error occurred during speech recognition.';
-            
-            switch (event.error) {
-                case 'no-speech':
-                    errorMessage = 'No speech detected. Please try again.';
-                    break;
-                case 'audio-capture':
-                    errorMessage = 'Audio capture failed. Please check your microphone.';
-                    break;
-                case 'not-allowed':
-                    errorMessage = 'Microphone access denied. Please allow microphone access.';
-                    break;
-                case 'network':
-                    errorMessage = 'Network error occurred. Please check your connection.';
-                    break;
-            }
-            
-            this.showNotification(errorMessage, 'error');
-            this.stopRecording();
-        };
-
-        this.recognition.onend = () => {
-            this.isRecording = false;
-            this.updateUI();
-            this.updateStatus('ready', 'Ready to record');
-            this.interimTranscript.classList.remove('active');
-        };
-    }
-
     bindEvents() {
-        this.startBtn.addEventListener('click', () => this.startRecording());
-        this.stopBtn.addEventListener('click', () => this.stopRecording());
-        this.clearBtn.addEventListener('click', () => this.clearTranscript());
-        this.copyBtn.addEventListener('click', () => this.copyToClipboard());
-        this.downloadBtn.addEventListener('click', () => this.downloadTranscript());
+        // Upload area events
+        this.uploadArea.addEventListener('click', () => this.videoInput.click());
+        this.uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+        this.uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
+        this.uploadArea.addEventListener('drop', this.handleDrop.bind(this));
+        this.videoInput.addEventListener('change', this.handleFileSelect.bind(this));
         
-        this.languageSelect.addEventListener('change', () => {
-            if (this.recognition) {
-                this.recognition.lang = this.languageSelect.value;
+        // Video player events
+        this.videoPlayer.addEventListener('loadedmetadata', this.handleVideoLoaded.bind(this));
+        this.videoPlayer.addEventListener('timeupdate', this.handleTimeUpdate.bind(this));
+        
+        // Button events
+        this.addSubtitleBtn.addEventListener('click', () => this.openModal());
+        this.clearAllBtn.addEventListener('click', () => this.clearAllSubtitles());
+        this.exportSrtBtn.addEventListener('click', () => this.exportSRT());
+        
+        // Modal events
+        this.modalClose.addEventListener('click', () => this.closeModal());
+        this.cancelBtn.addEventListener('click', () => this.closeModal());
+        this.saveSubtitleBtn.addEventListener('click', () => this.saveSubtitle());
+        
+        // Close modal when clicking outside
+        this.subtitleModal.addEventListener('click', (e) => {
+            if (e.target === this.subtitleModal) {
+                this.closeModal();
             }
         });
-
-        // Auto-save transcript as user types
-        this.transcript.addEventListener('input', () => {
-            this.finalTranscript = this.transcript.textContent;
-        });
-
-        // Handle keyboard shortcuts
+        
+        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.subtitleModal.classList.contains('show')) {
+                this.closeModal();
+            }
             if (e.ctrlKey || e.metaKey) {
                 switch (e.key) {
-                    case 'Enter':
+                    case 'n':
                         e.preventDefault();
-                        if (this.isRecording) {
-                            this.stopRecording();
-                        } else {
-                            this.startRecording();
-                        }
+                        this.openModal();
                         break;
-                    case 'c':
-                        if (e.shiftKey) {
-                            e.preventDefault();
-                            this.copyToClipboard();
-                        }
-                        break;
-                    case 'd':
-                        if (e.shiftKey) {
-                            e.preventDefault();
-                            this.downloadTranscript();
-                        }
+                    case 's':
+                        e.preventDefault();
+                        this.exportSRT();
                         break;
                 }
             }
         });
     }
 
-    startRecording() {
-        if (!this.recognition) {
-            this.showNotification('Speech recognition not available', 'error');
+    handleDragOver(e) {
+        e.preventDefault();
+        this.uploadArea.classList.add('dragover');
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.uploadArea.classList.remove('dragover');
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        this.uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.processVideoFile(files[0]);
+        }
+    }
+
+    handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            this.processVideoFile(file);
+        }
+    }
+
+    processVideoFile(file) {
+        // Validate file type
+        if (!file.type.startsWith('video/')) {
+            this.showNotification('Please select a valid video file', 'error');
             return;
         }
 
-        try {
-            this.recognition.start();
-            this.updateStatus('listening', 'Listening...');
-        } catch (error) {
-            console.error('Error starting recognition:', error);
-            this.showNotification('Failed to start recording', 'error');
+        this.videoFile = file;
+        this.videoName.textContent = file.name;
+        
+        // Create object URL for video
+        const videoURL = URL.createObjectURL(file);
+        this.videoPlayer.src = videoURL;
+        
+        // Show video info and player
+        this.videoInfo.style.display = 'block';
+        this.videoPlayerSection.style.display = 'block';
+        this.subtitleEditorSection.style.display = 'block';
+        
+        this.showNotification('Video loaded successfully!');
+    }
+
+    handleVideoLoaded() {
+        const duration = this.videoPlayer.duration;
+        this.videoDuration = duration;
+        
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.floor(duration % 60);
+        document.getElementById('videoDuration').textContent = 
+            `Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    handleTimeUpdate() {
+        // This could be used for real-time subtitle display in the future
+        const currentTime = this.videoPlayer.currentTime;
+        // Find and highlight current subtitle if needed
+    }
+
+    openModal(editIndex = -1) {
+        this.currentEditingIndex = editIndex;
+        
+        if (editIndex >= 0) {
+            // Editing existing subtitle
+            const subtitle = this.subtitles[editIndex];
+            this.modalTitle.textContent = 'Edit Subtitle';
+            this.startTime.value = subtitle.startTime;
+            this.endTime.value = subtitle.endTime;
+            this.subtitleText.value = subtitle.text;
+        } else {
+            // Adding new subtitle
+            this.modalTitle.textContent = 'Add Subtitle';
+            this.startTime.value = '';
+            this.endTime.value = '';
+            this.subtitleText.value = '';
+            
+            // Set default times based on current video time
+            if (this.videoPlayer.currentTime) {
+                this.startTime.value = this.videoPlayer.currentTime.toFixed(1);
+                this.endTime.value = (this.videoPlayer.currentTime + 5).toFixed(1);
+            }
         }
+        
+        this.subtitleModal.classList.add('show');
+        this.startTime.focus();
     }
 
-    stopRecording() {
-        if (this.recognition && this.isRecording) {
-            this.recognition.stop();
+    closeModal() {
+        this.subtitleModal.classList.remove('show');
+        this.currentEditingIndex = -1;
+    }
+
+    saveSubtitle() {
+        const startTime = parseFloat(this.startTime.value);
+        const endTime = parseFloat(this.endTime.value);
+        const text = this.subtitleText.value.trim();
+        
+        // Validation
+        if (isNaN(startTime) || isNaN(endTime)) {
+            this.showNotification('Please enter valid start and end times', 'error');
+            return;
         }
-    }
-
-    clearTranscript() {
-        this.finalTranscript = '';
-        this.transcript.textContent = '';
-        this.interimTranscript.textContent = '';
-        this.interimTranscript.classList.remove('active');
-        this.showNotification('Transcript cleared');
-    }
-
-    async copyToClipboard() {
-        const text = this.transcript.textContent.trim();
+        
+        if (startTime >= endTime) {
+            this.showNotification('End time must be greater than start time', 'error');
+            return;
+        }
         
         if (!text) {
-            this.showNotification('No text to copy', 'error');
+            this.showNotification('Please enter subtitle text', 'error');
             return;
         }
+        
+        if (this.videoDuration && endTime > this.videoDuration) {
+            this.showNotification('End time cannot exceed video duration', 'error');
+            return;
+        }
+        
+        const subtitle = { startTime, endTime, text };
+        
+        if (this.currentEditingIndex >= 0) {
+            // Update existing subtitle
+            this.subtitles[this.currentEditingIndex] = subtitle;
+            this.showNotification('Subtitle updated successfully!');
+        } else {
+            // Add new subtitle
+            this.subtitles.push(subtitle);
+            this.showNotification('Subtitle added successfully!');
+        }
+        
+        // Sort subtitles by start time
+        this.subtitles.sort((a, b) => a.startTime - b.startTime);
+        
+        this.renderSubtitles();
+        this.closeModal();
+    }
 
-        try {
-            await navigator.clipboard.writeText(text);
-            this.showNotification('Text copied to clipboard');
-        } catch (error) {
-            console.error('Failed to copy text:', error);
-            // Fallback for older browsers
-            this.fallbackCopyToClipboard(text);
+    renderSubtitles() {
+        if (this.subtitles.length === 0) {
+            this.subtitleList.innerHTML = `
+                <div class="subtitle-placeholder">
+                    <p>No subtitles added yet. Click "Add Subtitle" to get started.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        this.subtitleList.innerHTML = this.subtitles.map((subtitle, index) => `
+            <div class="subtitle-item">
+                <div class="subtitle-header">
+                    <span class="subtitle-time">
+                        ${this.formatTime(subtitle.startTime)} → ${this.formatTime(subtitle.endTime)}
+                    </span>
+                    <div class="subtitle-actions">
+                        <button class="edit-btn" onclick="app.openModal(${index})">Edit</button>
+                        <button class="delete-btn" onclick="app.deleteSubtitle(${index})">Delete</button>
+                        <button onclick="app.seekToSubtitle(${index})">Go to</button>
+                    </div>
+                </div>
+                <div class="subtitle-text">${this.escapeHtml(subtitle.text)}</div>
+            </div>
+        `).join('');
+    }
+
+    deleteSubtitle(index) {
+        if (confirm('Are you sure you want to delete this subtitle?')) {
+            this.subtitles.splice(index, 1);
+            this.renderSubtitles();
+            this.showNotification('Subtitle deleted');
         }
     }
 
-    fallbackCopyToClipboard(text) {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        try {
-            document.execCommand('copy');
-            this.showNotification('Text copied to clipboard');
-        } catch (error) {
-            console.error('Fallback copy failed:', error);
-            this.showNotification('Failed to copy text', 'error');
-        }
-        
-        document.body.removeChild(textArea);
+    seekToSubtitle(index) {
+        const subtitle = this.subtitles[index];
+        this.videoPlayer.currentTime = subtitle.startTime;
+        this.videoPlayer.play();
     }
 
-    downloadTranscript() {
-        const text = this.transcript.textContent.trim();
-        
-        if (!text) {
-            this.showNotification('No text to download', 'error');
+    clearAllSubtitles() {
+        if (this.subtitles.length === 0) {
+            this.showNotification('No subtitles to clear', 'error');
             return;
         }
+        
+        if (confirm('Are you sure you want to delete all subtitles? This action cannot be undone.')) {
+            this.subtitles = [];
+            this.renderSubtitles();
+            this.showNotification('All subtitles cleared');
+        }
+    }
 
-        const blob = new Blob([text], { type: 'text/plain' });
+    exportSRT() {
+        if (this.subtitles.length === 0) {
+            this.showNotification('No subtitles to export', 'error');
+            return;
+        }
+        
+        let srtContent = '';
+        
+        this.subtitles.forEach((subtitle, index) => {
+            const startTime = this.formatSRTTime(subtitle.startTime);
+            const endTime = this.formatSRTTime(subtitle.endTime);
+            
+            srtContent += `${index + 1}\n`;
+            srtContent += `${startTime} --> ${endTime}\n`;
+            srtContent += `${subtitle.text}\n\n`;
+        });
+        
+        // Create and download file
+        const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         
+        const fileName = this.videoFile ? 
+            this.videoFile.name.replace(/\.[^/.]+$/, '') + '.srt' : 
+            'subtitles.srt';
+        
         a.href = url;
-        a.download = `transcript-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        this.showNotification('Transcript downloaded');
+        this.showNotification(`SRT file exported: ${fileName}`);
     }
 
-    updateTranscript() {
-        this.transcript.textContent = this.finalTranscript.trim();
+    formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = (seconds % 60).toFixed(1);
+        return `${mins}:${secs.padStart(4, '0')}`;
     }
 
-    updateInterimTranscript(text) {
-        if (text.trim()) {
-            this.interimTranscript.textContent = text;
-            this.interimTranscript.classList.add('active');
-        } else {
-            this.interimTranscript.classList.remove('active');
-        }
-    }
-
-    updateUI() {
-        this.startBtn.disabled = this.isRecording;
-        this.stopBtn.disabled = !this.isRecording;
+    formatSRTTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const milliseconds = Math.floor((seconds % 1) * 1000);
         
-        if (this.isRecording) {
-            this.startBtn.classList.add('recording-animation');
-        } else {
-            this.startBtn.classList.remove('recording-animation');
-        }
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
     }
 
-    updateStatus(state, text) {
-        this.statusDot.className = `status-dot ${state}`;
-        this.statusText.textContent = text;
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     showNotification(message, type = 'success') {
@@ -274,32 +358,19 @@ class SpeechToTextApp {
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new SpeechToTextApp();
+    window.app = new VideoSubtitleGenerator();
 });
 
 // Add some helpful tips for users
 document.addEventListener('DOMContentLoaded', () => {
-    // Show browser compatibility info
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        const compatibilityInfo = document.createElement('div');
-        compatibilityInfo.innerHTML = `
-            <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; margin: 1rem 0; color: #92400e;">
-                <strong>Browser Compatibility Notice:</strong><br>
-                This application requires a browser that supports the Web Speech API. 
-                Please use Chrome, Edge, or Safari for the best experience.
-            </div>
-        `;
-        document.querySelector('.main-content').prepend(compatibilityInfo);
-    }
-
     // Add keyboard shortcuts info
     const shortcutsInfo = document.createElement('div');
     shortcutsInfo.innerHTML = `
         <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 1rem; margin: 1rem 0; color: #1e40af; font-size: 0.875rem;">
             <strong>Keyboard Shortcuts:</strong><br>
-            • Ctrl/Cmd + Enter: Start/Stop recording<br>
-            • Ctrl/Cmd + Shift + C: Copy transcript<br>
-            • Ctrl/Cmd + Shift + D: Download transcript
+            • Ctrl/Cmd + N: Add new subtitle<br>
+            • Ctrl/Cmd + S: Export SRT file<br>
+            • Escape: Close modal
         </div>
     `;
     document.querySelector('.features-section').after(shortcutsInfo);
