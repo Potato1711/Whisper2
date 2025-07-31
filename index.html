@@ -57,6 +57,14 @@
                             </svg>
                             Add Subtitle
                         </button>
+                        <button id="generateSubtitlesBtn" class="btn btn-ai" disabled>
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M9 19c-5 0-8-3-8-8s3-8 8-8 8 3 8 8-3 8-8 8z"/>
+                                <path d="M9 9h.01"/>
+                                <path d="M9 13h.01"/>
+                            </svg>
+                            Generate with AI
+                        </button>
                         <button id="clearAllBtn" class="btn btn-outline">Clear All</button>
                         <button id="exportSrtBtn" class="btn btn-success">
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -84,9 +92,15 @@
                 </div>
                 
                 <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI-Powered Generation</h3>
+                    <p>Automatically generate subtitles using Whisper AI speech recognition technology</p>
+                </div>
+                
+                <div class="feature-card">
                     <div class="feature-icon">✏️</div>
-                    <h3>Subtitle Editor</h3>
-                    <p>Easy-to-use interface for creating and editing subtitle timing and text</p>
+                    <h3>Manual Editing</h3>
+                    <p>Fine-tune AI-generated subtitles or create them manually with precise timing control</p>
                 </div>
                 
                 <div class="feature-card">
@@ -129,6 +143,11 @@
                 <button id="cancelBtn" class="btn btn-outline">Cancel</button>
                 <button id="saveSubtitleBtn" class="btn btn-primary">Save Subtitle</button>
             </div>
+            <br><br>
+            <strong>AI Features:</strong><br>
+            • Click "Generate with AI" to automatically create subtitles<br>
+            • Edit AI-generated subtitles for perfect accuracy<br>
+            • Supports multiple languages with Whisper AI
         </div>
     </div>
 

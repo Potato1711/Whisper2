@@ -1,9 +1,13 @@
+import WhisperProcessor from './src/whisper.js';
+
 class VideoSubtitleGenerator {
     constructor() {
         this.subtitles = [];
         this.currentEditingIndex = -1;
         this.videoFile = null;
         this.videoDuration = 0;
+        this.whisperProcessor = new WhisperProcessor();
+        this.isProcessingAI = false;
         
         this.initializeElements();
         this.bindEvents();
@@ -24,6 +28,7 @@ class VideoSubtitleGenerator {
         // Subtitle editor
         this.subtitleEditorSection = document.getElementById('subtitleEditorSection');
         this.addSubtitleBtn = document.getElementById('addSubtitleBtn');
+        this.generateSubtitlesBtn = document.getElementById('generateSubtitlesBtn');
         this.clearAllBtn = document.getElementById('clearAllBtn');
         this.exportSrtBtn = document.getElementById('exportSrtBtn');
         this.subtitleList = document.getElementById('subtitleList');
@@ -56,6 +61,7 @@ class VideoSubtitleGenerator {
         
         // Button events
         this.addSubtitleBtn.addEventListener('click', () => this.openModal());
+        this.generateSubtitlesBtn.addEventListener('click', () => this.generateSubtitlesWithAI());
         this.clearAllBtn.addEventListener('click', () => this.clearAllSubtitles());
         this.exportSrtBtn.addEventListener('click', () => this.exportSRT());
         
@@ -137,7 +143,67 @@ class VideoSubtitleGenerator {
         this.videoPlayerSection.style.display = 'block';
         this.subtitleEditorSection.style.display = 'block';
         
+        // Enable AI generation button
+        this.generateSubtitlesBtn.disabled = false;
+        
         this.showNotification('Video loaded successfully!');
+    }
+
+    async generateSubtitlesWithAI() {
+        if (!this.videoFile || this.isProcessingAI) {
+            return;
+        }
+
+        this.isProcessingAI = true;
+        this.generateSubtitlesBtn.disabled = true;
+        this.generateSubtitlesBtn.innerHTML = `
+            <svg class="btn-icon animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+            </svg>
+            Processing...
+        `;
+
+        try {
+            const subtitles = await this.whisperProcessor.processVideo(
+                this.videoFile,
+                (progress) => {
+                    const stage = progress.stage || 'processing';
+                    const percent = Math.round(progress.progress * 100);
+                    
+                    let message = 'Processing audio...';
+                    if (stage === 'extracting') {
+                        message = 'Extracting audio from video...';
+                    } else if (stage === 'transcribing') {
+                        message = 'Generating subtitles with AI...';
+                    } else if (stage === 'complete') {
+                        message = 'Processing complete!';
+                    }
+                    
+                    this.showNotification(`${message} (${percent}%)`, 'info');
+                }
+            );
+
+            // Add generated subtitles to the list
+            this.subtitles = subtitles;
+            this.renderSubtitles();
+            
+            this.showNotification(`Generated ${subtitles.length} subtitles automatically!`, 'success');
+            
+        } catch (error) {
+            console.error('AI subtitle generation failed:', error);
+            this.showNotification('Failed to generate subtitles. Please try again or add them manually.', 'error');
+        } finally {
+            this.isProcessingAI = false;
+            this.generateSubtitlesBtn.disabled = false;
+            this.generateSubtitlesBtn.innerHTML = `
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M9 19c-5 0-8-3-8-8s3-8 8-8 8 3 8 8-3 8-8 8z"/>
+                    <path d="M9 9h.01"/>
+                    <path d="M9 13h.01"/>
+                </svg>
+                Generate with AI
+            `;
+        }
     }
 
     handleVideoLoaded() {
